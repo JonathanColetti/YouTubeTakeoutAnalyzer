@@ -33,11 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /*
-        * Main handler for uploads of zip files
-        * Finds the required files and initates data and display
-        * @param {File} file The ZIP file uploaded
-        * @returns void if no problems 
-    */
+     * Main handler for uploads of zip files
+     * Finds the required files and initates data and display
+     * @param {File} file The ZIP file uploaded
+     * @returns void if no problems 
+     */
     async function handleFile(file) {
         if (!file.name.endsWith('.zip')) {
             alert('Please upload a valid .zip file.');
@@ -51,10 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const zip = await JSZip.loadAsync(file);
-            
+
             const historyFile = findFileInZip(zip, 'history/watch-history.html');
             const subsFile = findFileInZip(zip, 'subscriptions/subscriptions.csv');
-            
+
             if (!historyFile) {
                 throw new Error('Could not find watch-history.html in the ZIP file. Try a different part');
             }
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusText.textContent = 'Parsing watch history...';
             const historyHtml = await historyFile.async('string');
             const watchHistory = parseWatchHistory(historyHtml);
-            
+
             if (watchHistory.length === 0) {
                 throw new Error('No watch history found. The HTML file might be empty or in an unrecognized format.');
             }
@@ -90,13 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function findFileInZip(zip, partialPath) {
         return zip.file(new RegExp(`.*${partialPath}$`))[0];
     }
-    
+
 
     function parseWatchHistory(htmlString) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
         const history = [];
-        
+
         const contentCells = doc.querySelectorAll('.content-cell.mdl-cell--6-col.mdl-typography--body-1');
 
         contentCells.forEach(cell => {
@@ -107,15 +107,15 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 // querying in 'cell' to avoid other links
                 const links = cell.querySelectorAll('a');
-                
+
                 // A valid entry has a video + channel link
                 if (links.length < 2) {
-                    return; 
+                    return;
                 }
 
                 const videoLink = links[0];
                 const channelLink = links[1];
-                
+
                 if (!channelLink.href.includes('youtube.com/channel')) {
                     return;
                 }
@@ -124,16 +124,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const videoUrl = videoLink.href;
                 const channelName = channelLink.textContent.trim();
                 const channelUrl = channelLink.href;
-                
+
                 const htmlParts = cell.innerHTML.split('<br>');
-                if (htmlParts.length < 3) return; 
+                if (htmlParts.length < 3) return;
 
                 const dateString = htmlParts[2].trim();
                 const cleanedDateString = dateString.replace(/, /g, ' ').replace(/ /g, ' ');
                 const timestamp = new Date(cleanedDateString);
 
                 if (videoTitle && channelName && !isNaN(timestamp.getTime())) {
-                    history.push({ videoTitle, videoUrl, channelName, channelUrl, timestamp });
+                    history.push({
+                        videoTitle,
+                        videoUrl,
+                        channelName,
+                        channelUrl,
+                        timestamp
+                    });
                 }
             } catch (e) {
                 console.warn("Could not parse an entry, skipping:", cell, e);
@@ -143,14 +149,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function parseSubscriptions(csvString) {
-        const result = Papa.parse(csvString, { header: true, skipEmptyLines: true });
+        const result = Papa.parse(csvString, {
+            header: true,
+            skipEmptyLines: true
+        });
         return result.data;
     }
 
     function analyzeAndDisplayData(history, subscriptions) {
         document.getElementById('total-videos').textContent = history.length.toLocaleString();
         document.getElementById('total-subscriptions').textContent = subscriptions.length.toLocaleString();
-        
+
         const channelCounts = history.reduce((acc, item) => {
             acc[item.channelName] = (acc[item.channelName] || 0) + 1;
             return acc;
@@ -158,22 +167,24 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('unique-channels').textContent = Object.keys(channelCounts).length.toLocaleString();
 
         const dayCounts = history.reduce((acc, item) => {
-            const day = item.timestamp.toLocaleDateString('en-US', { weekday: 'long' });
+            const day = item.timestamp.toLocaleDateString('en-US', {
+                weekday: 'long'
+            });
             acc[day] = (acc[day] || 0) + 1;
             return acc;
         }, {});
-        
+
         const dayEntries = Object.entries(dayCounts);
-        const mostActiveDay = dayEntries.length > 0
-            ? dayEntries.sort(([, a], [, b]) => b - a)[0][0]
-            : 'N/A';
+        const mostActiveDay = dayEntries.length > 0 ?
+            dayEntries.sort(([, a], [, b]) => b - a)[0][0] :
+            'N/A';
         document.getElementById('most-active-day').textContent = mostActiveDay;
 
         if (topChannelsChart) topChannelsChart.destroy();
         if (hourlyActivityChart) hourlyActivityChart.destroy();
         if (monthlyHistoryChart) monthlyHistoryChart.destroy();
 
-        const sortedChannels = Object.entries(channelCounts).sort(([,a],[,b]) => b - a).slice(0, 10);
+        const sortedChannels = Object.entries(channelCounts).sort(([, a], [, b]) => b - a).slice(0, 10);
         topChannelsChart = new Chart(document.getElementById('top-channels-chart').getContext('2d'), {
             type: 'bar',
             data: {
@@ -186,7 +197,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     borderWidth: 1
                 }]
             },
-            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
         });
 
         const hourlyCounts = Array(24).fill(0);
@@ -194,7 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
         hourlyActivityChart = new Chart(document.getElementById('hourly-activity-chart').getContext('2d'), {
             type: 'bar',
             data: {
-                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                labels: Array.from({
+                    length: 24
+                }, (_, i) => `${i}:00`),
                 datasets: [{
                     label: 'Videos Watched',
                     data: hourlyCounts,
@@ -203,7 +224,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     borderWidth: 1
                 }]
             },
-            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
         });
 
         const monthlyCounts = {};
@@ -211,11 +244,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const monthKey = `${item.timestamp.getFullYear()}-${String(item.timestamp.getMonth()).padStart(2, '0')}`;
             monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
         });
-        
+
         const sortedMonthKeys = Object.keys(monthlyCounts).sort();
         const monthLabels = sortedMonthKeys.map(key => {
             const [year, month] = key.split('-');
-            return new Date(year, month).toLocaleDateString('en-US', { year: '2-digit', month: 'short'});
+            return new Date(year, month).toLocaleDateString('en-US', {
+                year: '2-digit',
+                month: 'short'
+            });
         });
         const monthData = sortedMonthKeys.map(key => monthlyCounts[key]);
 
@@ -232,7 +268,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     tension: 0.1
                 }]
             },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
         });
     }
 });
