@@ -2,7 +2,7 @@
 
 Analyze the takeout zip specifically for youtube within the browser.
 
-![Home page](./start_page.jpg)
+![Home page](./homepage.jpg)
 
 # URL [`Webapp`]()
 
